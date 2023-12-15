@@ -135,6 +135,7 @@ async function run() {
       res.send(result);
     });
 
+    // SERVICESSSSSSSSSSSS
     // getting the Service data SERVICES AND TOUR DEATILS
 
     app.get("/services", async (req, res) => {
@@ -145,6 +146,39 @@ async function run() {
     app.post("/services", verifyToken, verifyAdmin, async (req, res) => {
       const item = req.body;
       const result = await serviceCollection.insertOne(item);
+      res.send(result);
+    });
+
+    app.delete("/services/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await serviceCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // Specific Service for edit
+    app.get("/services/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await serviceCollection.findOne(query);
+      res.send(result);
+    });
+    // Updateing in Update Item Section
+    app.patch("/services/:id", async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          type: item.type,
+          price: item.price,
+          description: item.description,
+          country: item.country,
+          image_url: item.image_url,
+        },
+      };
+      const result = await serviceCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
 
