@@ -252,6 +252,104 @@ async function run() {
       res.send(result);
     });
 
+    // Stats Or Analytics
+    app.get("/admin-stats", verifyToken, verifyAdmin, async (req, res) => {
+      const users = await userCollection.estimatedDocumentCount();
+      const serviceItems = await serviceCollection.estimatedDocumentCount();
+      const bookingsItems = await paymentCollection.estimatedDocumentCount();
+
+      // const payment = await paymentCollection.find().toArray();
+      // const revenue = payment.reduce(
+      //   (total, payment) => total + payment.price,
+      //   0
+      // );
+      // PipeLine
+      const result = await paymentCollection
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalRevenue: {
+                $sum: "$price",
+              },
+            },
+          },
+        ])
+        .toArray();
+      const revenue = result.length > 0 ? result[0].totalRevenue : 0;
+
+      res.send({
+        users,
+        serviceItems,
+        bookingsItems,
+        revenue,
+      });
+    });
+
+    // Using Aggregate Pipe  Line
+    app.get('/order-stats', async (req, res) => {
+      const result = await paymentCollection.aggregate([
+        {
+          $unwind: "$menuItemIds",
+        },
+        {
+          $lookup: {
+            from: "menu",
+            localField: "menuItemIds",
+            foreignField: "_id",
+            as: "menuItems",
+          },
+        },
+        {
+          $unwind: "$menuItems",
+        },
+        // {
+        //   $set:{
+        //     "localField": "$menuItems._id"
+        //   }
+        // },
+        {
+          $group: {
+            _id: "$menuItems.type",
+            quantity: { $sum: 1 },
+            revenue: { $sum: "$menuItems.price" }
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            // menuItems:0,
+            type: "$_id",
+            quantity: "$quantity",
+            revenue: "$revenue",
+          },
+        },
+      ]).toArray();
+      res.send(result);
+    });
+
+    // app.get("/order-stats", async (req, res) => {
+    //   const result = await paymentCollection
+    //     .aggregate([
+    //       {
+    //         $unwind: '$menuItemIds',
+    //       },
+    //       {
+    //         $lookup:{
+    //           from:'services',
+    //           localField: 'menuItemIds',
+    //           foreignField: '_id',
+    //           as: 'serviceItems'
+    //         }
+    //       },
+    //       {
+    //         $unwind:'$serviceItems'
+    //       }
+    //     ])
+    //     .toArray();
+    //   res.send(result);
+    // });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
